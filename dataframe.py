@@ -2,7 +2,7 @@ import xarray as xr
 import pandas as pd
 from typing import Union
 
-def netcdf_to_pandas(source: Union[str, xr.Dataset], variable: str = "volumetric_surface_soil_moisture") -> pd.DataFrame:
+def netcdf_to_pandas(source: Union[str, xr.Dataset], variable: str = "sm") -> pd.DataFrame:
     """
     Loads soil moisture data from a NetCDF file (or xarray.Dataset) and converts it into a pandas DataFrame.
 
@@ -20,7 +20,6 @@ def netcdf_to_pandas(source: Union[str, xr.Dataset], variable: str = "volumetric
     else:
         ds = source
 
-
     # 2. Extract the DataArray that's specific to variable
     da = ds[variable]
 
@@ -32,10 +31,19 @@ def netcdf_to_pandas(source: Union[str, xr.Dataset], variable: str = "volumetric
     # 5. Rename data columns for clarity
     df = df.rename(columns={variable: "moisture"})
 
-    # 6. Return the DataFrame!
+    # 6. Drop rows with missing moisture values
+    df = df.dropna(subset=["moisture"])
+
+    # 7. Return the DataFrame!
     return df
 
 if __name__ == "__main__":
     path_to_file = "data/C3S-SOILMOISTURE-L3S-SSMV-COMBINED-DAILY-20230101000000-TCDR-v202312.0.0.nc"
-    df = netcdf_to_pandas(path_to_file)
+    df = netcdf_to_pandas(path_to_file, "sm")
     print (df.head())
+
+
+# Tomorrow, 
+# Try not just df.head, maybe printing more results
+# Check runtime
+# maybe try auto closing dataset to improve runtme?
