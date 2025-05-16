@@ -36,5 +36,6 @@ def netcdf_to_pandas(source: Union[str, xr.Dataset], variable: str = "volumetric
     return df
 
 if __name__ == "__main__":
-    df = load_soil_moisture("")
+    path_to_file = "data/C3S-SOILMOISTURE-L3S-SSMV-COMBINED-DAILY-20230101000000-TCDR-v202312.0.0.nc"
+    df = netcdf_to_pandas(path_to_file)
     print (df.head())
