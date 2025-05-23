@@ -51,6 +51,3 @@ if __name__ == "__main__":
     df = netcdf_to_pandas(path_to_file, ["sm", "sm_uncertainty"])
     print (df.head(15))
     print (df.describe())
-
-# note for nexttime
-# try making thius function also pass in sm_unceratinty, so i can show that in front end
