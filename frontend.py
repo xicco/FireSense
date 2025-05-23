@@ -21,7 +21,7 @@ fig = px.scatter(
     y = "lon",
     color = "moisture",
     size = "moisture",
-   # hover_data=["sm_uncertainty"], EXPERIMENT NEXT TIME
+   hover_data=["uncertainty"],
     title="Soil Moisture (sample)"
 )
 
