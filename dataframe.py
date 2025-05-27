@@ -68,9 +68,6 @@ def load_multiple_files(file_list: list[str], variable: Union[str, list[str]] = 
     return combined_df
 
 
-
-
-
 if __name__ == "__main__":
     print("=== Testing netcdf_to_pandas with single file ===")
     path_to_file = "data/C3S-SOILMOISTURE-L3S-SSMV-COMBINED-DAILY-20230101000000-TCDR-v202312.0.0.nc"
@@ -81,13 +78,11 @@ if __name__ == "__main__":
     print("\n=== Testing load_multiple_files with multiple files ===")
     import os
     data_folder = "data/daily/"
-
     all_files = []
     for file in os.listdir(data_folder):
         if file.endswith(".nc"):
             full_path = os.path.join(data_folder, file)
             all_files.append(full_path)
-
     df_multiple = load_multiple_files(all_files, ["sm", "sm_uncertainty"])
     print(df_multiple.head(15))
     print(f"Combined DataFrame shape: {df_multiple.shape}")
