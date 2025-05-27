@@ -110,17 +110,12 @@ if __name__ == "__main__":
 
     path_to_file = "data/C3S-SOILMOISTURE-L3S-SSMV-COMBINED-DAILY-20230101000000-TCDR-v202312.0.0.nc"
     df = netcdf_to_pandas(path_to_file)
-
     df2 = add_season_column(df)
-
     thresholds = compute_threshold(df2, 10.0)
-
     df_risk = classify_risk(df2, thresholds)
 
     print (df_risk.head(15))
-
     print(df_risk.sort_values("risk_score", ascending=False).head(10))
-    
     print(df_risk["risk_flag"].value_counts())
 
 
