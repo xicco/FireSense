@@ -46,8 +46,48 @@ def netcdf_to_pandas(source: Union[str, xr.Dataset], variable: Union[str, list[s
 
     return df
 
+
+def load_multiple_files(file_list: list[str], variable: Union[str, list[str]] = "sm") -> pd.DataFrame:
+    """
+    Loads multiple NetCDF files, converts each to a DataFrame, and concatenates them.
+
+    Args:
+        file_list: list of file paths to NetCDF files (one file per day).
+        variable: variable or list of variables to extract, default "sm".
+    
+    Returns:
+        A single pandas DataFrame containing data from all files concatenated.
+    """
+    dfs = []    # list to hold individual DataFrames
+    for file in file_list:
+        df = netcdf_to_pandas(file, variable)   # use existing function to load each file
+        dfs.append(df) # add to list
+
+    # concatenate all DataFrames vertically, reset index to avoid duplicates
+    combined_df = pd.concat(dfs, ignore_index=True)
+    return combined_df
+
+
+
+
+
 if __name__ == "__main__":
+    print("=== Testing netcdf_to_pandas with single file ===")
     path_to_file = "data/C3S-SOILMOISTURE-L3S-SSMV-COMBINED-DAILY-20230101000000-TCDR-v202312.0.0.nc"
     df = netcdf_to_pandas(path_to_file, ["sm", "sm_uncertainty"])
     print (df.head(15))
     print (df.describe())
+
+    print("\n=== Testing load_multiple_files with multiple files ===")
+    import os
+    data_folder = "data/daily/"
+
+    all_files = []
+    for file in os.listdir(data_folder):
+        if file.endswith(".nc"):
+            full_path = os.path.join(data_folder, file)
+            all_files.append(full_path)
+
+    df_multiple = load_multiple_files(all_files, ["sm", "sm_uncertainty"])
+    print(df_multiple.head(15))
+    print(f"Combined DataFrame shape: {df_multiple.shape}")
