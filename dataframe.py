@@ -74,6 +74,7 @@ if __name__ == "__main__":
     df = netcdf_to_pandas(path_to_file, ["sm", "sm_uncertainty"])
     print (df.head(15))
     print (df.describe())
+    print(f"Single DataFrame shape: {df.shape}")
 
     print("\n=== Testing load_multiple_files with multiple files ===")
     import os
