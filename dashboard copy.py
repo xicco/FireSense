@@ -14,7 +14,7 @@ st.set_page_config(page_title="FireSense Dashboard", layout="wide")
 # --- 1) CACHE & LOAD ALL DATA ---------------------------------------
 @st.cache_data
 def load_all_data(data_folder: str) -> pd.DataFrame:
-     """
+    """
     Load every .nc file in `data_folder`, compute seasonal thresholds, classify risk,
     and return a single DataFrame with these columns at minimum:
       [time, lat, lon, moisture, threshold, risk_flag, risk_score, date, season, ...]
@@ -50,20 +50,79 @@ def load_all_data(data_folder: str) -> pd.DataFrame:
 DATA_FOLDER = "data/daily/"
 df_risk = load_all_data(DATA_FOLDER)
 
-df = load_sample(path_to_file)
 
-st.subheader("Sample data")
-st.dataframe(df)
+# --- 2) SIDEBAR / DATE PICKER ---------------------------------------
+st.sidebar.header("Select a date to visualize")
+min_date = df_risk["date"].min()
+max_date = df_risk["date"].max()
+default_date = max_date
 
-fig = px.scatter(
-    df,
-    x = "lat",
-    y = "lon",
-    color = "moisture",
-    size = "moisture",
-   hover_data=["uncertainty"],
-    title="Soil Moisture (sample)"
+selected_date = st.sidebar.date_input(
+    "Date",
+    value=default_date,
+    min_value=min_date,
+    max_value=max_date
 )
 
-st.plotly_chart(fig, use_container_width=True)
+# Filter df_risk to only that date:
+df_today = df_risk[df_risk["date"] == selected_date]
+df_today_clean = df_today.copy()
+df_today_clean["risk_score"] = df_today_clean["risk_score"].fillna(0)
 
+# Quick info at top of sidebar (optional):
+st.sidebar.markdown(f"**Showing date for:** {selected_date}")
+st.sidebar.markdown(f"**Total grid cells today:** {len(df_today_clean)}")
+
+
+# --- 3) GEOGRAPHIC VIEW: Plotly Map of Risk Scores -----------------
+st.subheader(f"Fire-Risk map on {selected_date}")
+
+if df_today.empty:
+    st.warning("No data available for this date.")
+else:
+    fig_map = px.scatter_mapbox(
+        df_today_clean,
+        lat="lat",
+        lon="lon",
+        color="risk_score",
+        size="risk_score",
+        hover_data=["moisture", "threshold", "risk_flag"],
+        color_continuous_scale="YlOrRd",
+        size_max=12,
+        zoom=3,
+        mapbox_style="open-street-map",
+        title=None
+    )
+    # Force the map’s layout to look good
+    fig_map.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+
+    st.plotly_chart(fig_map, use_container_width=True)
+
+# --- 3) GEOGRAPHIC VIEW: Heatmap of Risk Scores instead of circles ---
+st.subheader(f"Fire-Risk Heatmap on {selected_date}")
+
+if df_today.empty:
+    st.warning("No data available for this date.")
+else:
+    # 1. Prepare a “plot” DataFrame that has no NaN risk_score
+    #    (either drop NaNs or fill them; here I’ll drop to focus on valid data)
+
+    # 2. Use px.density_mapbox to build a continuous heatmap of risk_score
+    fig_heat = px.density_mapbox(
+        df_today_clean,
+        lat="lat",
+        lon="lon",
+        z="risk_score",                # weight each point by its risk_score
+        radius=10,                     # radius of influence (in pixels) per point
+        center={"lat": df_today_clean["lat"].mean(), "lon": df_plot["lon"].mean()},
+        zoom=3,                        # adjust based on how zoomed-in you want
+        mapbox_style="open-street-map",
+        color_continuous_scale="YlOrRd",
+        title=None
+    )
+
+    # 3. Tweak layout margins so it uses the full width
+    fig_heat.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+
+    # 4. Show the heatmap
+    st.plotly_chart(fig_heat, use_container_width=True)
