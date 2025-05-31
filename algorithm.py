@@ -106,11 +106,18 @@ def classify_risk(df: pd.DataFrame, thresholds: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    from dataframe import netcdf_to_pandas
+    from dataframe import load_multiple_files
 
-    path_to_file = "data/C3S-SOILMOISTURE-L3S-SSMV-COMBINED-DAILY-20230101000000-TCDR-v202312.0.0.nc"
-    df = netcdf_to_pandas(path_to_file)
-    df2 = add_season_column(df)
+    import os
+    data_folder = "data/daily/"
+    all_files = []
+    for file in os.listdir(data_folder):
+        if file.endswith(".nc"):
+            full_path = os.path.join(data_folder, file)
+            all_files.append(full_path)
+    df_multiple = load_multiple_files(all_files, ["sm", "sm_uncertainty"])
+
+    df2 = add_season_column(df_multiple)
     thresholds = compute_threshold(df2, 10.0)
     df_risk = classify_risk(df2, thresholds)
 
@@ -118,6 +125,8 @@ if __name__ == "__main__":
     print(df_risk.sort_values("risk_score", ascending=False).head(10))
     print(df_risk["risk_flag"].value_counts())
 
+    num_zero = (df_risk["risk_score"] == 0).sum()
+    print(f"Number of rows with risk_score == 0: {num_zero}")
 
 
 # think about the various locations that are visible in each data.
