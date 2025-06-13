@@ -92,9 +92,11 @@ def load_fire_data(csv_path: str) -> pd.DataFrame:
     # Convert data column to datetime
     df['date'] = pd.to_datetime(df['date'])
 
+    return df
 
 
 if __name__ == "__main__":
+    '''
     print("=== Testing netcdf_to_pandas with single file ===")
     path_to_file = "data/C3S-SOILMOISTURE-L3S-SSMV-COMBINED-DAILY-20230101000000-TCDR-v202312.0.0.nc"
     df = netcdf_to_pandas(path_to_file, ["sm", "sm_uncertainty"])
@@ -113,13 +115,11 @@ if __name__ == "__main__":
     df_multiple = load_multiple_files(all_files, ["sm", "sm_uncertainty"])
     print(df_multiple.head(15))
     print(f"Combined DataFrame shape: {df_multiple.shape}")
+    '''
 
     print("\n=== Testing load_fire_data with single file ===")
-    csv_path = ""
-    df = pd.read_csv(csv_path)
-    print(df['acq_date'].unique())
-
-    fire_df = load_fire_data(fire_path)
-    print(fire_df.head())
+    csv_path = "data/fire/fire_archive_M-C61_624454.csv"
+    fire_df = load_fire_data(csv_path)
+    print(fire_df.head(15))
     print(f"Total records: {len(fire_df)}")
     print(f"Date range: {fire_df['date'].min()} to {fire_df['date'].max()}")
