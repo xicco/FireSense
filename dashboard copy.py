@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 
 # Bring in your data-loading and risk-calculation routines:
-from dataframe import load_multiple_files
+from dataframe import load_multiple_files, load_fire_data
 from algorithm import add_season_column, compute_threshold, classify_risk
 
 # Set Streamlit page config if you want a wide layout:
@@ -50,10 +50,8 @@ def load_all_data(data_folder: str) -> pd.DataFrame:
 DATA_FOLDER = "data/daily/"
 df_risk = load_all_data(DATA_FOLDER)
 
-
-
-
-
+FIRE_DATA_PATH = "data/fire/fire_archive_M-C61_624454.csv"
+df_fire = load_fire_data(FIRE_DATA_PATH)
 
 
 # SIDEBAR / DATE PICKER
@@ -70,15 +68,16 @@ selected_date = st.sidebar.date_input(
 )
 
 # Filter df_risk to only that date:
-df_today = df_risk[df_risk["date"] == selected_date]
+moisture_today = df_risk[df_risk["date"] == selected_date]
+fire_today = df_fire[df_fire["date"] == pd.to_datetime(selected_date)]
 
 # Clean up any NaNs in risk_score (so plots won’t break)
-df_today_clean = df_today.copy()
-df_today_clean["risk_score"] = df_today_clean["risk_score"].fillna(0)
+moisture_today_clean = moisture_today.copy()
+moisture_today_clean["risk_score"] = moisture_today_clean["risk_score"].fillna(0)
 
 # Quick info at top of sidebar (optional):
 st.sidebar.markdown(f"**Showing date for:** {selected_date}")
-st.sidebar.markdown(f"**Total grid cells today:** {len(df_today_clean)}")
+st.sidebar.markdown(f"**Total grid cells today:** {len(moisture_today_clean)}")
 
 
 
@@ -91,8 +90,8 @@ st.sidebar.markdown(f"**Total grid cells today:** {len(df_today_clean)}")
 st.subheader("🔥 Today’s Fire-Risk Overview")
 
 # compute KPIs
-total_cells = len(df_today_clean)
-at_risk_cells = int(df_today_clean["risk_flag"].sum())
+total_cells = len(moisture_today_clean)
+at_risk_cells = int(moisture_today_clean["risk_flag"].sum())
 if total_cells:
     pct_at_risk = (at_risk_cells / total_cells)
 else:
@@ -115,7 +114,7 @@ col3.metric("Percent At Risk",       f"{pct_at_risk:.1%}")
 # GEOGRAPHIC VIEW
 st.subheader(f"Fire-Risk Heatmap on {selected_date}")
 
-if df_today.empty:
+if moisture_today.empty:
     st.warning("No data available for this date.")
 else:
     # 1. Prepare a “plot” DataFrame that has no NaN risk_score
@@ -123,12 +122,12 @@ else:
 
     # 2. Use px.density_mapbox to build a continuous heatmap of risk_score
     fig_heat = px.density_map(
-        df_today_clean,
+        moisture_today_clean,
         lat="lat",
         lon="lon",
         z="risk_score",                # weight each point by its risk_score
         radius=10,                     # radius of influence (in pixels) per point
-        center={"lat": df_today_clean["lat"].mean(), "lon": df_today_clean["lon"].mean()},
+        center={"lat": moisture_today_clean["lat"].mean(), "lon": moisture_today_clean["lon"].mean()},
         zoom=3,                        # adjust based on how zoomed-in you want
         map_style="open-street-map",
         color_continuous_scale="YlOrRd",
@@ -138,9 +137,22 @@ else:
     # 3. Tweak layout margins so it uses the full width
     fig_heat.update_layout(margin=dict(l=0, r=0, t=0, b=0))
 
-    # 4. Show the heatmap
-    st.plotly_chart(fig_heat, use_container_width=True)
+    # 4. Add fire points if available
+    if not fire_today.empty:
+        fig_heat.add_scattermapbox(
+            lat=fire_today["lat"],
+            lon=fire_today["lon"],
+            mode="markers",
+            marker=dict(
+                size=6,
+                color="red",
+                opacity=0.4
+            ),
+            name="Detected Fires"
+        )
 
+    # 5. Show the final combined map
+    st.plotly_chart(fig_heat, use_container_width=True)
 
 
 
