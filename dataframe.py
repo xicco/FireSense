@@ -68,6 +68,32 @@ def load_multiple_files(file_list: list[str], variable: Union[str, list[str]] = 
     return combined_df
 
 
+def load_fire_data(csv_path: str) -> pd.DataFrame:
+    """
+    Loads NASA FIRMS fire data from a CSV file and returns a cleaned DataFrame.
+
+    Args:
+        csv_path (str): Path to the fire data CSV file.
+
+    Returns:
+        pd.DataFrame: Cleaned fire data with latitude, longitude, brightness, and time.
+    """
+    df = pd.read_csv(csv_path)
+
+    # Basic filtering and renaming
+    df = df.rename(columns={
+        'latitude': 'lat',
+        'longitude': 'lon',
+        'acq_date': 'date',
+        'acq_time': 'time',
+        'brightness': 'brightness'
+    })
+
+    # Convert data column to datetime
+    df['date'] = pd.to_datetime(df['date'])
+
+
+
 if __name__ == "__main__":
     print("=== Testing netcdf_to_pandas with single file ===")
     path_to_file = "data/C3S-SOILMOISTURE-L3S-SSMV-COMBINED-DAILY-20230101000000-TCDR-v202312.0.0.nc"
@@ -87,3 +113,13 @@ if __name__ == "__main__":
     df_multiple = load_multiple_files(all_files, ["sm", "sm_uncertainty"])
     print(df_multiple.head(15))
     print(f"Combined DataFrame shape: {df_multiple.shape}")
+
+    print("\n=== Testing load_fire_data with single file ===")
+    csv_path = ""
+    df = pd.read_csv(csv_path)
+    print(df['acq_date'].unique())
+
+    fire_df = load_fire_data(fire_path)
+    print(fire_df.head())
+    print(f"Total records: {len(fire_df)}")
+    print(f"Date range: {fire_df['date'].min()} to {fire_df['date'].max()}")
