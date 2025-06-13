@@ -51,7 +51,12 @@ DATA_FOLDER = "data/daily/"
 df_risk = load_all_data(DATA_FOLDER)
 
 
-# --- 2) SIDEBAR / DATE PICKER ---------------------------------------
+
+
+
+
+
+# SIDEBAR / DATE PICKER
 st.sidebar.header("Select a date to visualize")
 min_date = df_risk["date"].min()
 max_date = df_risk["date"].max()
@@ -66,6 +71,8 @@ selected_date = st.sidebar.date_input(
 
 # Filter df_risk to only that date:
 df_today = df_risk[df_risk["date"] == selected_date]
+
+# Clean up any NaNs in risk_score (so plots won’t break)
 df_today_clean = df_today.copy()
 df_today_clean["risk_score"] = df_today_clean["risk_score"].fillna(0)
 
@@ -74,31 +81,38 @@ st.sidebar.markdown(f"**Showing date for:** {selected_date}")
 st.sidebar.markdown(f"**Total grid cells today:** {len(df_today_clean)}")
 
 
-# --- 3) GEOGRAPHIC VIEW: Plotly Map of Risk Scores -----------------
-st.subheader(f"Fire-Risk map on {selected_date}")
 
-if df_today.empty:
-    st.warning("No data available for this date.")
+
+
+
+
+
+# SUMMARY METRICS
+st.subheader("🔥 Today’s Fire-Risk Overview")
+
+# compute KPIs
+total_cells = len(df_today_clean)
+at_risk_cells = int(df_today_clean["risk_flag"].sum())
+if total_cells:
+    pct_at_risk = (at_risk_cells / total_cells)
 else:
-    fig_map = px.scatter_mapbox(
-        df_today_clean,
-        lat="lat",
-        lon="lon",
-        color="risk_score",
-        size="risk_score",
-        hover_data=["moisture", "threshold", "risk_flag"],
-        color_continuous_scale="YlOrRd",
-        size_max=12,
-        zoom=3,
-        mapbox_style="open-street-map",
-        title=None
-    )
-    # Force the map’s layout to look good
-    fig_map.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+    pct_at_risk = 0
 
-    st.plotly_chart(fig_map, use_container_width=True)
+# create 3 columns for summary metrics
+col1, col2, col3 = st.columns(3)
 
-# --- 3) GEOGRAPHIC VIEW: Heatmap of Risk Scores instead of circles ---
+# fill them with metrics
+col1.metric("Total Grid Cells",      f"{total_cells}")
+col2.metric("Cells At Risk",         f"{at_risk_cells}")
+col3.metric("Percent At Risk",       f"{pct_at_risk:.1%}")
+
+
+
+
+
+
+
+# GEOGRAPHIC VIEW
 st.subheader(f"Fire-Risk Heatmap on {selected_date}")
 
 if df_today.empty:
@@ -108,15 +122,15 @@ else:
     #    (either drop NaNs or fill them; here I’ll drop to focus on valid data)
 
     # 2. Use px.density_mapbox to build a continuous heatmap of risk_score
-    fig_heat = px.density_mapbox(
+    fig_heat = px.density_map(
         df_today_clean,
         lat="lat",
         lon="lon",
         z="risk_score",                # weight each point by its risk_score
         radius=10,                     # radius of influence (in pixels) per point
-        center={"lat": df_today_clean["lat"].mean(), "lon": df_plot["lon"].mean()},
+        center={"lat": df_today_clean["lat"].mean(), "lon": df_today_clean["lon"].mean()},
         zoom=3,                        # adjust based on how zoomed-in you want
-        mapbox_style="open-street-map",
+        map_style="open-street-map",
         color_continuous_scale="YlOrRd",
         title=None
     )
@@ -126,3 +140,57 @@ else:
 
     # 4. Show the heatmap
     st.plotly_chart(fig_heat, use_container_width=True)
+
+
+
+
+st.markdown("<br><br>", unsafe_allow_html=True)
+
+
+
+
+
+# LINE GRAPH
+ # 4a. Count “how many total rows” per date
+total_per_day = (
+    df_risk
+    .groupby("date")   # “group” the DataFrame by each distinct date
+    .size()            # count how many rows are in each group
+    .rename("total_count")  # give that resulting Series a name
+)
+
+# 4b. Count “how many at‐risk rows” per date
+at_risk_per_day = (
+    df_risk[df_risk["risk_flag"]]  # filter to only at-risk rows
+    .groupby("date")               # then group by date
+    .size()                        # count rows per date
+    .rename("at_risk_count")       # name that Series
+)
+
+# 4c. Merge into a single daily DataFrame
+df_daily_counts = pd.concat(
+    [total_per_day, at_risk_per_day], 
+    axis=1            # concatenate as columns (not rows)
+).fillna(0)           # if a date had zero at-risk, fill that missing value with 0
+
+# 4d. Compute the proportion at risk
+df_daily_counts["proportion_at_risk"] = (
+    df_daily_counts["at_risk_count"] 
+    / df_daily_counts["total_count"]
+)
+
+# 4e. Turn the date index back into a column
+df_daily_counts = df_daily_counts.reset_index()
+
+# 4f. Plot the time series with Plotly
+fig_timeseries = px.line(
+    df_daily_counts,
+    x="date",
+    y="proportion_at_risk",
+    markers=True,               # draw a dot at each date point
+    title="Daily Proportion of Grid Cells At Risk"
+)
+
+# 4g. Show everything
+st.subheader("📈 Area-wide % at Risk Over Time")
+st.plotly_chart(fig_timeseries, use_container_width=True)
