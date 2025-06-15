@@ -118,7 +118,7 @@ if __name__ == "__main__":
     '''
 
     print("\n=== Testing load_fire_data with single file ===")
-    csv_path = "data/fire/fire_archive_M-C61_624454.csv"
+    csv_path = "data/fire/fire_archive_MODIS_GLOBAL_2023.csv"
     fire_df = load_fire_data(csv_path)
     print(fire_df.head(15))
     print(f"Total records: {len(fire_df)}")

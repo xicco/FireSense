@@ -50,7 +50,7 @@ def load_all_data(data_folder: str) -> pd.DataFrame:
 DATA_FOLDER = "data/daily/"
 df_risk = load_all_data(DATA_FOLDER)
 
-FIRE_DATA_PATH = "data/fire/fire_archive_M-C61_624454.csv"
+FIRE_DATA_PATH = "data/fire/fire_archive_MODIS_GLOBAL_2023.csv"
 df_fire = load_fire_data(FIRE_DATA_PATH)
 
 
@@ -124,7 +124,7 @@ else:
     fig_heat = px.density_map(
         moisture_today_clean,
         lat="lat",
-        lon="lon",
+        lon="lon", 
         z="risk_score",                # weight each point by its risk_score
         radius=10,                     # radius of influence (in pixels) per point
         center={"lat": moisture_today_clean["lat"].mean(), "lon": moisture_today_clean["lon"].mean()},
@@ -135,11 +135,12 @@ else:
     )
 
     # 3. Tweak layout margins so it uses the full width
-    fig_heat.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+    #fig_heat.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+    
 
     # 4. Add fire points if available
     if not fire_today.empty:
-        fig_heat.add_scattermapbox(
+        fig_heat.add_scattermap(
             lat=fire_today["lat"],
             lon=fire_today["lon"],
             mode="markers",
@@ -151,8 +152,18 @@ else:
             name="Detected Fires"
         )
 
+    fig_heat.update_layout(
+    mapbox=dict(
+        style="open-street-map",
+        center={"lat": moisture_today_clean["lat"].mean(), "lon": moisture_today_clean["lon"].mean()},
+        zoom=3
+    ),
+    margin=dict(l=0, r=0, t=0, b=0),
+    showlegend=True
+    )
+
     # 5. Show the final combined map
-    st.plotly_chart(fig_heat, use_container_width=True)
+    st.plotly_chart(fig_heat, use_container_width=True, config={"scrollZoom": True})
 
 
 
