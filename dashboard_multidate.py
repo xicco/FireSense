@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import datetime
 
 # Bring in your data-loading and risk-calculation routines:
 from dataframe import load_multiple_files, load_fire_data
@@ -54,35 +55,96 @@ FIRE_DATA_PATH = "data/fire/fire_archive_MODIS_GLOBAL_2023.csv"
 df_fire = load_fire_data(FIRE_DATA_PATH)
 
 
-# SIDEBAR / DATE PICKER
-st.sidebar.header("Select a date to visualize")
+# --- 2) SIDEBAR CONTROLS -------------------------------------------
+st.sidebar.header("Date Comparison")
 min_date = df_risk["date"].min()
 max_date = df_risk["date"].max()
-default_date = max_date
+default_date1 = max_date
 
-selected_date = st.sidebar.date_input(
-    "Date",
-    value=default_date,
+# Date 1 picker
+date1 = st.sidebar.date_input(
+    "Date 1",
+    value=default_date1,
+    min_value=min_date,
+    max_value=max_date
+)
+
+# Date 2 picker (default a week before)
+default_date2 = max(min_date, date1 - datetime.timedelta(days=7))
+date2 = st.sidebar.date_input(
+    "Date 2",
+    value=default_date2,
     min_value=min_date,
     max_value=max_date
 )
 
 # Filter df_risk to only that date:
-moisture_today = df_risk[df_risk["date"] == selected_date]
+moisture_date1 = df_risk[df_risk["date"] == date1]
+moisture_date2 = df_risk[df_risk["date"] == date2]
+
 fire_today = df_fire[df_fire["date"] == pd.to_datetime(selected_date)]
 
 # Clean up any NaNs in risk_score (so plots won’t break)
-moisture_today_clean = moisture_today.copy()
-moisture_today_clean["risk_score"] = moisture_today_clean["risk_score"].fillna(0)
+moisture_date1_clean = moisture_date1.copy()
+moisture_date1_clean["risk_score"] = moisture_date1_clean["risk_score"].fillna(0)
+
+moisture_date2_clean = moisture_date2.copy()
+moisture_date2_clean["risk_score"] = moisture_date2_clean["risk_score"].fillna(0)
+
+if moisture_date1.empty or moisture_date2.empty:
+    st.warning("No data for one of the selected dates. Please pick within the available range.")
+
+# --- 3) SIDE-BY-SIDE HEATMAPS --------------------------------------
+st.subheader(f"Fire-Risk Heatmaps: {date1} vs {date2}")
 
 # Quick info at top of sidebar (optional):
-st.sidebar.markdown(f"**Showing date for:** {selected_date}")
-st.sidebar.markdown(f"**Total grid cells today:** {len(moisture_today_clean)}")
+#st.sidebar.markdown(f"**Showing date for:** {selected_date}")
+#st.sidebar.markdown(f"**Total grid cells today:** {len(moisture_today_clean)}")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown(f"**Risk on {date1}**")
+    fig1 = px.density_map(
+        moisture_date1_clean,
+        lat="lat",
+        lon="lon",
+        z="risk_score",
+        radius=10,
+        center={"lat": moisture_date1_clean['lat'].mean(), "lon": moisture_date1_clean['lon'].mean()},
+        zoom=3,
+        map_style="open-street-map",
+        title=None
+    )
+    st.plotly_chart(fig1, use_container_width=True, config={"scrollZoom": True})
+
+with col2:
+    st.markdown(f"**Risk on {date2}**")
+    fig2 = px.density_map(
+        moisture_date2_clean,
+        lat="lat",
+        lon="lon",
+        z="risk_score",
+        radius=10,
+        center={"lat": moisture_date2_clean['lat'].mean(), "lon": moisture_date2_clean['lon'].mean()},
+        zoom=3,
+        map_style="open-street-map",
+        title=None
+    )
+    st.plotly_chart(fig2, use_container_width=True, config={"scrollZoom": True})
 
 
-
-
-
+# --- 4) DIFFERENCE MAP ---------------------------------------------
+# Merge and compute delta
+moisture_diff = (
+    moisture_date1_clean[['lat','lon','risk_score']].rename(columns={'risk_score': score1})
+    .merge(
+        moisture_date2_clean[['lat','lon','risk_score']].rename(columns={'risk_score': score2}),
+        on=['lat','lon'], how='outer'
+    )
+    .fillna(0)
+)
+moisture_diff['delta'] = moisture_diff['score1'] - moisture_diff['score2']
 
 
 
