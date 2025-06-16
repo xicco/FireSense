@@ -145,7 +145,7 @@ else:
             lon=fire_today["lon"],
             mode="markers",
             marker=dict(
-                size=6,
+                size=5,
                 color="red",
                 opacity=0.4
             ),
