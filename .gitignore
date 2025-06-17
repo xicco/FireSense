@@ -174,6 +174,6 @@ cython_debug/
 .pypirc
 
 # FireSense-specified
-#*.nc
-#data/
+*.nc
+data/
 .DS_Store
