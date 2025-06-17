@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import datetime
 
+
 # Bring in your data-loading and risk-calculation routines:
 from dataframe import load_multiple_files, load_fire_data
 from algorithm import add_season_column, compute_threshold, classify_risk
@@ -82,7 +83,7 @@ date2 = st.sidebar.date_input(
 moisture_date1 = df_risk[df_risk["date"] == date1]
 moisture_date2 = df_risk[df_risk["date"] == date2]
 
-fire_today = df_fire[df_fire["date"] == pd.to_datetime(selected_date)]
+#fire_today = df_fire[df_fire["date"] == pd.to_datetime(selected_date)]
 
 # Clean up any NaNs in risk_score (so plots won’t break)
 moisture_date1_clean = moisture_date1.copy()
@@ -112,10 +113,12 @@ with col1:
         z="risk_score",
         radius=10,
         center={"lat": moisture_date1_clean['lat'].mean(), "lon": moisture_date1_clean['lon'].mean()},
-        zoom=3,
+        zoom=2,
         map_style="open-street-map",
+        color_continuous_scale="YlOrRd",
         title=None
     )
+
     st.plotly_chart(fig1, use_container_width=True, config={"scrollZoom": True})
 
 with col2:
@@ -129,24 +132,109 @@ with col2:
         center={"lat": moisture_date2_clean['lat'].mean(), "lon": moisture_date2_clean['lon'].mean()},
         zoom=3,
         map_style="open-street-map",
+        color_continuous_scale="YlOrRd",
         title=None
     )
-    st.plotly_chart(fig2, use_container_width=True, config={"scrollZoom": True})
 
+    st.plotly_chart(fig2, use_container_width=True, config={"scrollZoom": True})
 
 # --- 4) DIFFERENCE MAP ---------------------------------------------
 # Merge and compute delta
 moisture_diff = (
-    moisture_date1_clean[['lat','lon','risk_score']].rename(columns={'risk_score': score1})
+    moisture_date1_clean[['lat', 'lon', 'risk_score']].rename(columns={'risk_score': 'score1'})
     .merge(
-        moisture_date2_clean[['lat','lon','risk_score']].rename(columns={'risk_score': score2}),
+        moisture_date2_clean[['lat', 'lon', 'risk_score']].rename(columns={'risk_score': 'score2'}),
+        on=['lat', 'lon'], how='outer'
+    )
+    .fillna(0)
+)
+moisture_diff['delta'] = moisture_diff['score1'] - moisture_diff['score2']
+
+# Clip tiny changes (optional, to hide noise)
+threshold = 0.05  # tweakable
+moisture_diff = moisture_diff[moisture_diff['delta'].abs() > threshold]
+
+# Set a symmetric color range
+abs_max_delta = max(abs(moisture_diff['delta'].min()), abs(moisture_diff['delta'].max()))
+
+st.subheader(f"Risk Change from {date2} → {date1}")
+fig_diff = px.density_map(
+    moisture_diff,
+    lat="lat",
+    lon="lon",
+    z="delta",
+    radius=4,  # even smaller radius = less blur
+    center={"lat": moisture_diff['lat'].mean(), "lon": moisture_diff['lon'].mean()},
+    zoom=3,
+    map_style="open-street-map",
+    color_continuous_scale='RdBu_r',
+    title='Δ Risk Score'
+)
+
+fig_diff.update_layout(
+    coloraxis=dict(
+        cmin=-abs_max_delta,
+        cmax=abs_max_delta,
+        colorbar=dict(title="Δ Risk")
+    )
+)
+
+st.plotly_chart(fig_diff, use_container_width=True, config={"scrollZoom": True})
+
+
+'''
+# --- 4) DIFFERENCE MAP ---------------------------------------------
+# Merge and compute delta
+moisture_diff = (
+    moisture_date1_clean[['lat','lon','risk_score']].rename(columns={'risk_score': 'score1'})
+    .merge(
+        moisture_date2_clean[['lat','lon','risk_score']].rename(columns={'risk_score': 'score2'}),
         on=['lat','lon'], how='outer'
     )
     .fillna(0)
 )
 moisture_diff['delta'] = moisture_diff['score1'] - moisture_diff['score2']
 
+st.subheader(f"Risk Change from {date2} → {date1}")
+fig_diff = px.density_map(
+    moisture_diff,
+    lat="lat",
+    lon="lon",
+    z="delta",
+    radius=10,
+    center={"lat": moisture_diff['lat'].mean(), "lon": moisture_diff['lon'].mean()},
+    zoom=3,
+    map_style="open-street-map",
+    color_continuous_scale='RdBu_r',
+    title='Δ Risk Score'
+)
 
+st.plotly_chart(fig_diff, use_container_width=True, config={"scrollZoom": True})
+
+'''
+'''
+# --- 5) ORIGINAL METRICS & TIMESERIES (Optional) -------------------
+st.markdown("---")
+
+# Summary metrics for Date1
+if not moisture_date1.empty:
+    total = len(moisture_date1)
+    at_risk = int(moisture_date1['risk_flag'].sum())
+    pct = at_risk/total if total else 0
+    st.metric(label=f"Cells at Risk on {date1}", value=f"{at_risk}/{total} ({pct:.1%})")
+
+# Time series of proportion at risk
+daily = (
+    df_risk.groupby('date').agg(
+        total=('risk_flag','size'), at_risk=('risk_flag','sum')
+    )
+)
+daily['prop'] = daily['at_risk'] / daily['total']
+fig_ts = px.line(
+    daily.reset_index(), x='date', y='prop', markers=True,
+    title='Daily Proportion at Risk'
+)
+st.plotly_chart(fig_ts, use_container_width=True)
 
 # SUMMARY METRICS
 st.subheader("🔥 Today’s Fire-Risk Overview")
@@ -159,6 +247,7 @@ if total_cells:
 else:
     pct_at_risk = 0
 
+
 # create 3 columns for summary metrics
 col1, col2, col3 = st.columns(3)
 
@@ -166,11 +255,6 @@ col1, col2, col3 = st.columns(3)
 col1.metric("Total Grid Cells",      f"{total_cells}")
 col2.metric("Cells At Risk",         f"{at_risk_cells}")
 col3.metric("Percent At Risk",       f"{pct_at_risk:.1%}")
-
-
-
-
-
 
 
 # GEOGRAPHIC VIEW
@@ -300,3 +384,4 @@ fig_hist.update_layout(
 )
 
 st.plotly_chart(fig_hist, use_container_width=True)
+'''
